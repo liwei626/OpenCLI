@@ -2934,11 +2934,24 @@ cli({
     .command('doctor')
     .description('Diagnose opencli browser bridge connectivity')
     .option('-v, --verbose', 'Debug output')
+    .option('-f, --format <fmt>', 'Output format: text, json', 'text')
     .action(async (opts) => {
       applyVerbose(opts);
+      const format = String(opts.format ?? 'text').toLowerCase();
+      if (format !== 'text' && format !== 'json') {
+        console.error(`Invalid format "${opts.format}". Use "text" or "json".`);
+        process.exitCode = EXIT_CODES.USAGE_ERROR;
+        return;
+      }
       const { runBrowserDoctor, renderBrowserDoctorReport } = await import('./doctor.js');
       const report = await runBrowserDoctor({ cliVersion: PKG_VERSION });
-      console.log(renderBrowserDoctorReport(report));
+      // Verbose logging writes to stderr (see logger.ts), so stdout stays pure JSON.
+      if (format === 'json') {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(renderBrowserDoctorReport(report));
+      }
+      process.exitCode = report.issues.length > 0 ? EXIT_CODES.GENERIC_ERROR : EXIT_CODES.SUCCESS;
     });
 
   program
